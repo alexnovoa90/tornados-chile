@@ -54,6 +54,7 @@ main{position:relative}
 .escala{display:flex;justify-content:space-between;color:var(--mut);font:500 10px "JetBrains Mono",monospace}
 .leyenda label{display:flex;gap:6px;align-items:center;margin-top:8px;color:var(--mut);cursor:pointer}
 .leaflet-container{font-family:Inter,sans-serif}
+.osm-oscuro{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9)}
 .leaflet-tooltip{background:#121820;color:#e8edf3;border:1px solid #253041;box-shadow:none}
 .etq{color:#cfd8e3;font:600 10.5px Inter;text-shadow:0 1px 2px #000;white-space:nowrap}
 @media (max-width:820px){
@@ -125,8 +126,16 @@ function color(p){ // percentil 70-100 -> escala
   return "rgb(184,50,168)";
 }
 const mapa = L.map("mapa",{zoomControl:true,preferCanvas:true}).setView([-36.5,-72.2],6);
-L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-  {attribution:"© OpenStreetMap © CARTO · GFS NOAA",subdomains:"abcd",maxZoom:12}).addTo(mapa);
+// Mapa base sin clave: Esri gris oscuro (+ etiquetas). Si falla, cambia solo a OpenStreetMap.
+mapa.createPane("etiquetas"); mapa.getPane("etiquetas").style.zIndex = 450; mapa.getPane("etiquetas").style.pointerEvents = "none";
+const base = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+  {attribution:"Mapa © Esri · Datos GFS NOAA",maxZoom:12}).addTo(mapa);
+const etiquetas = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+  {maxZoom:12,pane:"etiquetas"}).addTo(mapa);
+let fallos = 0;
+base.on("tileerror", () => { if (++fallos === 6) { mapa.removeLayer(base); mapa.removeLayer(etiquetas);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap · Datos GFS NOAA",maxZoom:12,
+    className:"osm-oscuro"}).addTo(mapa).bringToBack(); } });
 const capa = L.layerGroup().addTo(mapa), capaReg = L.layerGroup().addTo(mapa), capaHist = L.layerGroup();
 const H = D.paso_grados/2;
 
